@@ -12,7 +12,7 @@
 
 After the execution you can see the data in mongodb using RoboMongo, for example.
 
-2. You can generate the proper json file used by grafico.html visualization running the following commando in the "capture" folder:
+2. You can generate the proper json file used by grafico.html visualization running the following command in the "capture" folder:
 
 #### python export_json.py
 

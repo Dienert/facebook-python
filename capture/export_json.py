@@ -4,14 +4,14 @@ import io
 import re
 
 client = MongoClient('localhost', 27017)
-db = client.facebook
+#db = client.facebook
 friends_collection = db["User Name"]
 
 idiom = "pt-br"
 #idiom = "en"
 
-terms = { "en" : {"female": "Female",   "male": "Male",      "single-f": "Solteira", "single-m": "Solteiro" }, 
-        "pt-br": {"female": "Feminino", "male": "Masculino", "single-f": "Single",   "single-m": "Single"} }
+terms = { "en" : {"female": "Female",   "male": "Male",      "single-f": "Single",   "single-m": "Single" }, 
+        "pt-br": {"female": "Feminino", "male": "Masculino", "single-f": "Solteira", "single-m": "Solteiro"} }
 
 mulheres = {"genero": terms[idiom]["female"]}
 mulheres_solteiras = {"$or": [{"genero": terms[idiom]["female"], "status": "-"},
@@ -25,13 +25,14 @@ homens_solteiros = {"$or": [{"genero": terms[idiom]["male"], "status": "-"},
 
 todos_solteiros = {"status": "Single"}
 todos_sem_status = {"status": "-"}
+todos = {}
 #query = mulheres
 #query = homens
 #query = homens_solteiros
 #query = mulheres_solteiras
 #query = todos_solteiros
 #query = todos_sem_status
-query = {}
+##query = todos
 
 ids = friends_collection.find(query, {"_id": 0, "id": 1})
 ids = [id["id"] for id in ids]

@@ -1,7 +1,7 @@
 ## Facebook Friends Crawler
 
 ### Configuration Steps
-1. First thing to do is set email em password of the user in the file "capture/acess", each one in a line.
+1. First thing to do is set email and password of the user in the file "capture/acess", each one in a line.
 1. Install the python depencies.
 1. Install mongodb and create a database called "facebook"
 

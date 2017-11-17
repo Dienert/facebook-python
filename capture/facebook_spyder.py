@@ -19,7 +19,7 @@ ALL = 2
 ENCERRAR_CAPTURA_AMIGOS = 0
 CONTINUAR_CAPTURA_AMIGOS = 1
 
-NUMERO_MAXIMO_AMIGOS = 10
+NUMERO_MAXIMO_AMIGOS = 5000
 
 class FacebookSpyder(scrapy.Spider):
     name = "Facebook"

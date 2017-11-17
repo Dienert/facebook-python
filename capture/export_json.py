@@ -28,10 +28,10 @@ todos_sem_status = {"status": "-"}
 #query = mulheres
 #query = homens
 #query = homens_solteiros
-query = mulheres_solteiras
+#query = mulheres_solteiras
 #query = todos_solteiros
 #query = todos_sem_status
-#query = {}
+query = {}
 
 ids = friends_collection.find(query, {"_id": 0, "id": 1})
 ids = [id["id"] for id in ids]

@@ -1,23 +1,20 @@
 # -*- coding: utf-8 -*-
 
 import json
+import html as htmlentities
+import sys
+import traceback
 import scrapy
 from lxml import html, etree
-import html as htmlentities
-import io
-from urllib.parse import parse_qs, urlparse
-import re
 from friend_pagination_request import FriendPaginationRequest
-import pymongo
 from pymongo import MongoClient
 from pymongo import ReturnDocument
-import sys, traceback
 
 MUTUAL = 3
 ALL = 2
 
-ENCERRAR_CAPTURA_AMIGOS = 0
-CONTINUAR_CAPTURA_AMIGOS = 1
+END_FRIENDS_CAPTURE = 0
+CONTINUE_FRIENDS_CAPTURE = 1
 
 NUMERO_MAXIMO_AMIGOS = 5000
 
@@ -158,31 +155,31 @@ class FacebookSpyder(scrapy.Spider):
             #self.logger.info(json_data["payload"])
             
             # Pegando o elemento dentro do JSON que contém a página
-            is_continue = CONTINUAR_CAPTURA_AMIGOS
+            is_continue = CONTINUE_FRIENDS_CAPTURE
             try:
                 if json_data["payload"] != "":
                     friends_page_tree = html.fromstring(htmlentities.unescape(json_data["payload"]))
                 else:
-                    is_continue = ENCERRAR_CAPTURA_AMIGOS    
+                    is_continue = END_FRIENDS_CAPTURE    
             except etree.XMLSyntaxError:
                 self.logger.info("Captura de amigos finalizada")
-                is_continue = ENCERRAR_CAPTURA_AMIGOS
+                is_continue = END_FRIENDS_CAPTURE
 
             #"".decode('unicode_escape')
             #"".encode('utf-8'))
         except ValueError:
-            is_continue = ENCERRAR_CAPTURA_AMIGOS
+            is_continue = END_FRIENDS_CAPTURE
 
         # Analisando a próxima página
-        if is_continue != ENCERRAR_CAPTURA_AMIGOS:
+        if is_continue != END_FRIENDS_CAPTURE:
             if request.colecao == ALL:
                 is_continue = self.get_friends(friends_page_tree)
             else:
                 friend_profile_id = request.friend_profile_id
                 self.is_mutual_friend_collected(friends_page_tree, friend_profile_id)
-                is_continue = CONTINUAR_CAPTURA_AMIGOS
+                is_continue = CONTINUE_FRIENDS_CAPTURE
 
-        if is_continue != ENCERRAR_CAPTURA_AMIGOS:
+        if is_continue != END_FRIENDS_CAPTURE:
             #url = self.get_friends_pagination_request(controle)
             request.cursor = cursor
             newUrl = request.get_request()
@@ -251,9 +248,9 @@ class FacebookSpyder(scrapy.Spider):
 
             # Parando o programa ao coletar a quantidade de amigos desejada
             if self.controle['counter'] >= NUMERO_MAXIMO_AMIGOS:
-                return ENCERRAR_CAPTURA_AMIGOS
+                return END_FRIENDS_CAPTURE
 
-        return CONTINUAR_CAPTURA_AMIGOS
+        return CONTINUE_FRIENDS_CAPTURE
 
     def is_mutual_friend_collected(self, friends_node_page, friend_profile_id):
         for div_friends in friends_node_page.xpath(".//div[@data-pnref='mutual']"):
@@ -282,17 +279,14 @@ class FacebookSpyder(scrapy.Spider):
     def set_gender(self, response):
         tree = self.handle_page(response)
         profile_id = response.meta['profile_id']
-        try:
-            gender_div = tree.xpath('//span[text()="Gender"]/../../div')
-            friend = self.friends[profile_id]
-            if len(gender_div) == 0:
-                gender_div = tree.xpath('//span[text()="Gênero"]/../../div')
+        gender_div = tree.xpath('//span[text()="Gender"]/../../div')
+        friend = self.friends[profile_id]
+        if len(gender_div) == 0:
+            gender_div = tree.xpath('//span[text()="Gênero"]/../../div')
+        if (len(gender_div) != 0):
             gender = str(etree.tostring(gender_div[1], method="text", encoding='UTF-8'), 'utf-8')
             self.logger.info("#Genero: {} eh do sexo {}".format(friend["name"], gender))
             self.user_collection.find_one_and_update({"id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
-        except IndexError:
-            traceback.print_exc(file=sys.stdout)
-            pass # Caso não encontre o gênero não faz nada
 
     def start_statuses_capture(self):
         for profile_id, friend in self.friends.items():
@@ -341,7 +335,13 @@ class FacebookSpyder(scrapy.Spider):
             collection_wrapper = self.find_something("collection_wrapper_", '" class', 100, friends_page)
             pagelet_token = self.find_something('pagelet_token:"', '"}', 100, friends_page)
             lst = self.find_something(',lst:"', '"}', 60, friends_page)
-            friend_request = FriendPaginationRequest(self.controle['my_profile_id'], collection_wrapper, MUTUAL, "", friend_id, pagelet_token, lst)
+            friend_request = FriendPaginationRequest(self.controle['my_profile_id'], 
+                                                     collection_wrapper, 
+                                                     MUTUAL, 
+                                                     "", 
+                                                     friend_id, 
+                                                     pagelet_token, 
+                                                     lst)
             url = friend_request.get_request()
 
             self.logger.info("Verificando amigos mútuos de: " + self.friends[friend_id]["name"])

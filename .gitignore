@@ -1,2 +1,4 @@
 capture/access
+capture/__pycache__
 visualization/fotos/*
+visualization/test.json

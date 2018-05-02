@@ -4,8 +4,10 @@ import io
 import re
 
 client = MongoClient('localhost', 27017)
-#db = client.facebook
-friends_collection = db["User Name"]
+db = client.facebook
+#db = client.dienert_completo
+friends_collection = db["Diénert Vieira"]
+#friends_collection = db["friends"]
 
 idiom = "pt-br"
 #idiom = "en"
@@ -29,10 +31,10 @@ todos = {}
 #query = mulheres
 #query = homens
 #query = homens_solteiros
-#query = mulheres_solteiras
+query = mulheres_solteiras
 #query = todos_solteiros
 #query = todos_sem_status
-##query = todos
+#query = todos
 
 ids = friends_collection.find(query, {"_id": 0, "id": 1})
 ids = [id["id"] for id in ids]

@@ -4,7 +4,8 @@ import base64
 
 client = MongoClient('localhost', 27017)
 db = client.facebook
-friends_collection = db["User Name"]
+friends_collection = db["Diénert Vieira"]
+#friends_collection = db["User Name"]
 friends = friends_collection.find({}, {"_id": 0, "name": 1, "id": 1, "image": 1})
 
 for friend in friends:

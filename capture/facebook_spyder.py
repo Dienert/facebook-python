@@ -137,6 +137,7 @@ class FacebookSpyder(scrapy.Spider):
 
         url = request.get_request()
         friends_pagination_request = scrapy.Request(url, callback=self.handle_friends_pagination)
+        #self.logger.info("Request: {}".format(url))
         friends_pagination_request.meta['request'] = request
         return friends_pagination_request
 
@@ -168,6 +169,7 @@ class FacebookSpyder(scrapy.Spider):
             #"".decode('unicode_escape')
             #"".encode('utf-8'))
         except ValueError:
+            self.logger.info("Captura interrompida")
             is_continue = END_FRIENDS_CAPTURE
 
         # Analisando a próxima página
@@ -183,6 +185,7 @@ class FacebookSpyder(scrapy.Spider):
             #url = self.get_friends_pagination_request(controle)
             request.cursor = cursor
             newUrl = request.get_request()
+            #self.logger.info("Request: {}".format(newUrl))
             friends_pagination_request = scrapy.Request(newUrl, callback=self.handle_friends_pagination)
             friends_pagination_request.meta['request'] = request
             yield friends_pagination_request
@@ -198,7 +201,7 @@ class FacebookSpyder(scrapy.Spider):
     def get_friends(self, friends_node_page):
 
         # Pegando a div que contém todas as informações do amigo e iterando para cada um
-        for div_friends in friends_node_page.xpath(".//div[@data-pnref='all']"):
+        for div_friends in friends_node_page.xpath(".//div[@data-testid='friend_list_item']"):
 
             # Pegando id do profile do amigo
             profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid')[0]
@@ -241,7 +244,13 @@ class FacebookSpyder(scrapy.Spider):
                       "id": profile_id, 
                       "image": img}
 
+            #self.logger.info(friend)
+
+            #exit()
+            
             self.user_collection.insert_one(friend)
+
+            self.logger.info("Usuário {} salvo".format(friend['name']))
 
             # Adicionando amigo na lista de ids
             self.friends[profile_id] = friend

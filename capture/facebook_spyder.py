@@ -9,6 +9,10 @@ from lxml import html, etree
 from friend_pagination_request import FriendPaginationRequest
 from pymongo import MongoClient
 from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
+import os
+import urllib.request
+import _thread
 
 MUTUAL = 3
 ALL = 2
@@ -190,6 +194,14 @@ class FacebookSpyder(scrapy.Spider):
             yield friends_pagination_request
         else:
             self.controle['colecao'] = MUTUAL
+
+            self.path_root = "../visualization/fotos/"+self.username+"/"
+            try:
+                os.mkdir(self.path_root)
+            except FileExistsError:
+                self.logger.info("Diretório de imagens de perfis de {} já existe".format(self.username))
+            self.start_save_profile_images()
+
             for gender_capture in self.start_genders_capture():
                 yield gender_capture
             for status_capture in self.start_statuses_capture():
@@ -247,9 +259,13 @@ class FacebookSpyder(scrapy.Spider):
 
             #exit()
             
-            self.user_collection.insert_one(friend)
+            try:
+                self.user_collection.insert_one(friend)
+                self.logger.info("Usuário {} salvo".format(friend['name']))
+            except DuplicateKeyError:
+                self.user_collection.find_one_and_update({"_id": profile_id},{'$set': friend}, return_document=ReturnDocument.AFTER)
+                self.logger.info("Usuário {} atualizado".format(friend['name']))
 
-            self.logger.info("Usuário {} salvo".format(friend['name']))
 
             # Adicionando amigo na lista de ids
             self.friends[profile_id] = friend
@@ -269,9 +285,20 @@ class FacebookSpyder(scrapy.Spider):
             try:
                 if self.friends[profile_id]:
                     self.logger.info("#Mutual: {} eh amig@ de {}".format(self.friends[friend_profile_id]["name"], self.friends[profile_id]["name"]))
-                    self.user_collection.find_one_and_update({"id": profile_id}, {'$push': {'links': friend_profile_id}}, return_document=ReturnDocument.AFTER)
+                    self.user_collection.find_one_and_update({"_id": profile_id}, {'$push': {'links': friend_profile_id}}, return_document=ReturnDocument.AFTER)
             except:
                 pass
+
+    def start_save_profile_images(self):
+        for profile_id in self.friends.keys():
+            friend = self.friends[profile_id]
+            if friend["userName"] == "#": # Perfis Inativos
+                continue
+            _thread.start_new_thread( self.save_profile_image, (friend, ) )
+    
+    def save_profile_image(self, friend):
+        path = self.path_root+friend["name"]+"_"+friend["_id"]+".jpg"
+        urllib.request.urlretrieve (friend['image'], path)
 
     def start_genders_capture(self):
         for profile_id, friend in self.friends.items():
@@ -294,7 +321,7 @@ class FacebookSpyder(scrapy.Spider):
         if (len(gender_div) != 0):
             gender = str(etree.tostring(gender_div[1], method="text", encoding='UTF-8'), 'utf-8')
             self.logger.info("#Genero: {} eh do sexo {}".format(friend["name"], gender))
-            self.user_collection.find_one_and_update({"id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
+            self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
 
     def start_statuses_capture(self):
         for profile_id, friend in self.friends.items():
@@ -318,7 +345,7 @@ class FacebookSpyder(scrapy.Spider):
         #friend["status"] = status
         self.logger.info("#Status: {} está {}".format(friend["name"],status))
         #self.user_collection.replace_one({"id": profile_id}, friend, True)
-        self.user_collection.find_one_and_update({"id": profile_id}, {'$set': {'status': status}}, return_document=ReturnDocument.AFTER)
+        self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'status': status}}, return_document=ReturnDocument.AFTER)
 
 
     def get_links(self):

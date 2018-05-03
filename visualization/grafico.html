@@ -89,7 +89,7 @@ var   width = +svg.attr("width"),
 var color = d3.scaleOrdinal(d3.schemeCategory20);
 
 var simulation = d3.forceSimulation()
-    .force("link", d3.forceLink().id(function(d) { return d.id; }))
+    .force("link", d3.forceLink().id(function(d) { return d._id; }))
     // .force("link", d3.forceLink().id(function(d) { return d.profile_id; }))
     .force("charge", d3.forceManyBody().strength(-30))
     .force("center", d3.forceCenter(width / 2, height / 2))
@@ -97,7 +97,7 @@ var simulation = d3.forceSimulation()
     ;
 
 console.log(simulation);
-d3.json("test.json", function(error, graph) {
+d3.json("test.bak.json", function(error, graph) {
 
   var links = graph.links
 
@@ -144,7 +144,7 @@ d3.json("test.json", function(error, graph) {
 
   var pattern = node.append("defs")
     .append("pattern")
-      .attr("id", function(d) { return d.id; })
+      .attr("id", function(d) { return d._id; })
       .attr("x", "0")
       .attr("y", "0")
       .attr("patternUnits", "userSpaceOnUse")
@@ -156,14 +156,14 @@ d3.json("test.json", function(error, graph) {
       .attr("y", "0")
       .attr("height", "40")
       .attr("width", "40")
-      .attr("xlink:href", function(d) { return d.image; });
-      //.attr("xlink:href", function(d) { return "fotos/"+ d.name + "_" + d.id + ".jpg"; });
+      //.attr("xlink:href", function(d) { return d.image; });
+      .attr("xlink:href", function(d) { return "fotos/Diénert Vieira/"+ d.name + "_" + d._id + ".jpg"; });
 
   var circle = node.append("circle")
       .attr("r", 20)
       .data(graph.nodes)
-      .attr("id", function(d) { return "circle_" + d.id; })
-      .attr("fill", function(d) { return "url(#" + d.id +")"; })
+      .attr("id", function(d) { return "circle_" + d._id; })
+      .attr("fill", function(d) { return "url(#" + d._id +")"; })
       //.attr("fill", function() {return "hsl(" + Math.random() * 360 + ",100%,50%)";})
       .on("mouseover", fade(.01, true))
       //.on("mousemove", function(){return tooltip.style("top", (event.pageY-10)+"px").style("left",(event.pageX+10)+"px");})
@@ -249,7 +249,7 @@ d3.json("test.json", function(error, graph) {
       searchText = e.object.text;
       for (var node of graph.nodes) {
           if (searchText == node.name) {
-              var circleId = "#circle_" + node.id;
+              var circleId = "#circle_" + node._id;
               centerNode(circleId);
               var ev = document.createEvent("SVGEvents");
               ev.initEvent("mouseover",true,true);

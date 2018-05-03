@@ -37,16 +37,16 @@ todos = {}
 #query = todos_sem_status
 query = todos
 
-ids = friends_collection.find(query, {"_id": 0, "id": 1})
-ids = [id["id"] for id in ids]
+ids = friends_collection.find(query, {"_id": 1})
+ids = [id["_id"] for id in ids]
 
-nodes = friends_collection.find(query, {"_id": 0, "links": 0})
+nodes = friends_collection.find(query, {"links": 0})
 friends_file = io.open('../visualization/test.json', mode='w', encoding='utf-8')
 friends_file.write("{\n\t\t\"nodes\": \n")
 json = re.sub("},","},\n", dumps(nodes))
 friends_file.write(json)
 
-links = friends_collection.find(query, {"_id": 0, "id": 1, "links": 1, "nome": 1})
+links = friends_collection.find(query, {"_id": 1, "links": 1, "nome": 1})
 
 friends_file.write(",\n\t\t\"links\": [\n")
 primeiro = True
@@ -56,7 +56,7 @@ for friend in links:
             if link in ids:
                 if not primeiro:
                     friends_file.write(",\n")
-                friends_file.write('{"source": "'+friend["id"]+'","target":"'+link+'"}')
+                friends_file.write('{"source": "'+friend["_id"]+'","target":"'+link+'"}')
                 primeiro = False
 friends_file.write("\n]}")
 friends_file.close()

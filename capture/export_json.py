@@ -5,9 +5,9 @@ import re
 
 client = MongoClient('localhost', 27017)
 db = client.facebook
-db_name = "Diénert Vieira"
-#db_name = "Josirene Alencar"
-friends_collection = db[db_name]
+collection_name = "Diénert Vieira"
+#collection_name = "Josirene Alencar"
+friends_collection = db[collection_name]
 #friends_collection = db["friends"]
 
 idiom = "pt-br"

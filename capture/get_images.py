@@ -5,13 +5,13 @@ import os
 
 client = MongoClient('localhost', 27017)
 db = client.facebook
-db_name = "Diénert Vieira"
-#db_name = "Josirene Alencar"
-friends_collection = db[db_name]
+collection_name = "Diénert Vieira"
+#collection_name = "Josirene Alencar"
+friends_collection = db[collection_name]
 #friends_collection = db["User Name"]
 friends = friends_collection.find({}, {"_id": 0, "name": 1, "id": 1, "image": 1})
 
-path_root = "../visualization/fotos/"+db_name+"/"
+path_root = "../visualization/fotos/"+collection_name+"/"
 os.mkdir(path_root)
 
 for friend in friends:

@@ -25,7 +25,7 @@ class FacebookSpyder(scrapy.Spider):
     profile = ""
     collection = ""
     controle = {}
-    genders = 0
+    enders = 0
     friends = {}
     pagelet_token = ""
     lst = ""

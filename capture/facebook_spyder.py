@@ -16,7 +16,7 @@ ALL = 2
 END_FRIENDS_CAPTURE = 0
 CONTINUE_FRIENDS_CAPTURE = 1
 
-NUMERO_MAXIMO_AMIGOS = 5000
+NUMERO_MAXIMO_AMIGOS = 50
 
 class FacebookSpyder(scrapy.Spider):
     name = "Facebook"
@@ -25,7 +25,7 @@ class FacebookSpyder(scrapy.Spider):
     profile = ""
     collection = ""
     controle = {}
-    genders = 0
+    enders = 0
     friends = {}
     pagelet_token = ""
     lst = ""
@@ -34,7 +34,7 @@ class FacebookSpyder(scrapy.Spider):
     db = client.facebook
 
     custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
+        'DOWNLOAD_DELAY': 3,
         'LOG_LEVEL': 'INFO'
     }
 
@@ -169,7 +169,6 @@ class FacebookSpyder(scrapy.Spider):
             #"".decode('unicode_escape')
             #"".encode('utf-8'))
         except ValueError:
-            self.logger.info("Captura interrompida")
             is_continue = END_FRIENDS_CAPTURE
 
         # Analisando a próxima página

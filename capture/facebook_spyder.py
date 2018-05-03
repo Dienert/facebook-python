@@ -16,7 +16,7 @@ ALL = 2
 END_FRIENDS_CAPTURE = 0
 CONTINUE_FRIENDS_CAPTURE = 1
 
-NUMERO_MAXIMO_AMIGOS = 5000
+NUMERO_MAXIMO_AMIGOS = 20
 
 class FacebookSpyder(scrapy.Spider):
     name = "Facebook"
@@ -34,7 +34,7 @@ class FacebookSpyder(scrapy.Spider):
     db = client.facebook
 
     custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
+        'DOWNLOAD_DELAY': 3.5,
         'LOG_LEVEL': 'INFO'
     }
 
@@ -169,7 +169,6 @@ class FacebookSpyder(scrapy.Spider):
             #"".decode('unicode_escape')
             #"".encode('utf-8'))
         except ValueError:
-            self.logger.info("Captura interrompida")
             is_continue = END_FRIENDS_CAPTURE
 
         # Analisando a próxima página
@@ -241,7 +240,7 @@ class FacebookSpyder(scrapy.Spider):
             friend = {"counter": self.controle['counter'], 
                       "name": nome, 
                       "userName": profile, 
-                      "id": profile_id, 
+                      "_id": profile_id, 
                       "image": img}
 
             #self.logger.info(friend)
@@ -262,7 +261,7 @@ class FacebookSpyder(scrapy.Spider):
         return CONTINUE_FRIENDS_CAPTURE
 
     def is_mutual_friend_collected(self, friends_node_page, friend_profile_id):
-        for div_friends in friends_node_page.xpath(".//div[@data-pnref='mutual']"):
+        for div_friends in friends_node_page.xpath(".//div[@data-testid='friend_list_item']"):
 
             # Pegando id do perfil do amigo mútuo
             profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid')[0]

@@ -34,7 +34,7 @@ class FacebookSpyder(scrapy.Spider):
     db = client.facebook
 
     custom_settings = {
-        'DOWNLOAD_DELAY': 3,
+        'DOWNLOAD_DELAY': 3.5,
         'LOG_LEVEL': 'INFO'
     }
 

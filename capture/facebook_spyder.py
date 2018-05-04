@@ -126,7 +126,6 @@ class FacebookSpyder(scrapy.Spider):
         self.controle['lst'] = self.lst
         self.controle['my_profile_id'] = self.profile_id
         self.friends = {}
-        self.links = {}
         self.controle['requests'] = 0
 
         request = FriendPaginationRequest(self.profile_id, 
@@ -201,6 +200,7 @@ class FacebookSpyder(scrapy.Spider):
             except FileExistsError:
                 self.logger.info("Diretório de imagens de perfis de {} já existe".format(self.username))
             self.start_save_profile_images()
+
 
             for gender_capture in self.start_genders_capture():
                 yield gender_capture

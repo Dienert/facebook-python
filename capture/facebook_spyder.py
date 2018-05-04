@@ -13,6 +13,7 @@ from pymongo.errors import DuplicateKeyError
 import os
 import urllib.request
 import _thread
+import getpass
 
 MUTUAL = 3
 ALL = 2
@@ -48,10 +49,19 @@ class FacebookSpyder(scrapy.Spider):
     ]
     
     def parse(self, response):
-        access = open("access")
-        lines = access.readlines()
-        email = lines[0]
-        passw = lines[1]
+        try:
+            access = open("access")
+            lines = access.readlines()
+        except FileNotFoundError:
+            lines = []
+        try:
+            email = lines[0]
+        except IndexError:
+            email = input("Email para o login: ")
+        try:
+            passw = lines[1]
+        except IndexError:
+            passw = getpass.getpass(prompt="Senha: ")
         return scrapy.FormRequest.from_response(
             response,
             formdata={'email': email, 'pass': passw},
@@ -64,6 +74,7 @@ class FacebookSpyder(scrapy.Spider):
             comeco = html.index('viewerid') + 10
         except ValueError:
             self.logger.error("Login falhou!")
+            return
         self.logger.info("Login efetuado com sucesso")
         id = html[comeco:comeco+20]
         self.profile_id = id[0:id.index("\"")]

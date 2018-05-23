@@ -1,20 +1,26 @@
 # -*- coding: utf-8 -*-
 
-import json
-import html as htmlentities
 import sys
 import traceback
-import scrapy
-from scrapy.utils.response import open_in_browser
-from lxml import html, etree
-from friend_pagination_request import FriendPaginationRequest
-from pymongo import MongoClient
-from pymongo import ReturnDocument
-from pymongo.errors import DuplicateKeyError
 import os
 import urllib.request
 import _thread
 import getpass
+
+import scrapy
+from scrapy.utils.response import open_in_browser
+from scrapy.http import HtmlResponse
+
+import json
+import html as htmlentities
+from lxml import html, etree
+
+from friend_pagination_request import FriendPaginationRequest
+
+from pymongo import MongoClient
+from pymongo import ReturnDocument
+from pymongo.errors import DuplicateKeyError
+
 
 MUTUAL = 3
 ALL = 2
@@ -23,9 +29,10 @@ END_FRIENDS_CAPTURE = 0
 CONTINUE_FRIENDS_CAPTURE = 1
 
 NUMERO_MAXIMO_AMIGOS = 20
+#NUMERO_MAXIMO_AMIGOS = 5
 
 class FacebookSpyder(scrapy.Spider):
-    name = "Facebook"
+    name = "FacebookSpider"
     username = ""
     profile_id = ""
     profile = ""
@@ -97,18 +104,19 @@ class FacebookSpyder(scrapy.Spider):
             inicio = div.index("<!-- ")+5
             fim = div.index(" -->")
             page += div[inicio:fim]
-        return html.fromstring(page)
+        #return html.fromstring(page)
+        return HtmlResponse(url="",body=page, encoding='utf-8')
+       
 
     def get_friends_page_link(self, response):
         tree = self.handle_page(response)
-        friends_page_url = tree.xpath(".//a[@data-tab-key='friends']/@href")[0]
+        friends_page_url = tree.xpath(".//a[@data-tab-key='friends']/@href").extract_first()
         self.logger.info(friends_page_url)
         return scrapy.Request(friends_page_url, callback=self.get_others_user_info)
 
     def find_something(self, start, end, lenght, string, include_start=False):
         comeco = string.index(start)
         saida = string[comeco:comeco+lenght]
-        print("Saída: "+ saida)
         if include_start:
             comeco = 0
         else:
@@ -163,9 +171,14 @@ class FacebookSpyder(scrapy.Spider):
         friends_page = response.text
         request = response.meta['request']
 
-        # Buscando a chave para a próxima paginação de amigos
-        cursor = self.find_something('MDpub3Rfc3R', '"', 150, friends_page, True)
-        self.logger.debug("Encontrou o cursor")
+        is_continue = CONTINUE_FRIENDS_CAPTURE
+        try:
+            # Buscando a chave para a próxima paginação de amigos
+            cursor = self.find_something('MDpub3Rfc3R', '"', 150, friends_page, True)
+            self.logger.debug("Encontrou o cursor de paginação")
+        except:
+            self.logger.debug("Não encontrou o cursor de paginação")
+            is_continue = END_FRIENDS_CAPTURE
 
         # Apagando o 'for (;;);' do começo da página
         # Decodificando entidades HTML ex.: &quot; &amp;
@@ -173,11 +186,11 @@ class FacebookSpyder(scrapy.Spider):
         json_data = json.loads(friends_page[len('for (;;);'):len(friends_page)])
         
         # Pegando o elemento dentro do JSON que contém a página
-        is_continue = CONTINUE_FRIENDS_CAPTURE
         try:
             if "payload" in json_data and json_data["payload"] != "":
                 self.logger.debug("Tem payload")
-                friends_page_tree = html.fromstring(htmlentities.unescape(json_data["payload"]))
+                #friends_page_tree = html.fromstring(htmlentities.unescape(json_data["payload"]))
+                friends_page_tree = HtmlResponse(url="",body=json_data["payload"], encoding='utf-8')
             else:
                 self.logger.debug("Não tem payload")
                 is_continue = END_FRIENDS_CAPTURE    
@@ -191,14 +204,15 @@ class FacebookSpyder(scrapy.Spider):
         # Analisando a próxima página
         if is_continue != END_FRIENDS_CAPTURE:
             if request.colecao == ALL:
+                # Para a paginação caso o número máximo de amigos tenha sido capturado
                 is_continue = self.get_friends(friends_page_tree)
             else:
                 friend_profile_id = request.friend_profile_id
                 self.is_mutual_friend_collected(friends_page_tree, friend_profile_id)
+                # Captura todos os amigos mútuos entre os que já foram capturados
                 is_continue = CONTINUE_FRIENDS_CAPTURE
 
         if is_continue != END_FRIENDS_CAPTURE:
-            #url = self.get_friends_pagination_request(controle)
             request.cursor = cursor
             newUrl = request.get_request()
             #self.logger.info("Request: {}".format(newUrl))
@@ -206,21 +220,23 @@ class FacebookSpyder(scrapy.Spider):
             friends_pagination_request.meta['request'] = request
             yield friends_pagination_request
         else:
-            self.controle['colecao'] = MUTUAL
+            if self.controle['colecao'] == ALL: 
+                self.controle['colecao'] = MUTUAL
 
-            # self.path_root = "../visualization/fotos/"+self.username+"/"
-            # try:
-            #     os.mkdir(self.path_root)
-            # except FileExistsError:
-            #     self.logger.info("Diretório de imagens de perfis de {} já existe".format(self.username))
-            # self.start_save_profile_images()
+                self.path_root = "../visualization/fotos/"+self.username+"/"
+                try:
+                    self.logger.info("Criando Diretório de imagens de perfis de {}".format(self.username))
+                    os.mkdir(self.path_root)
+                except FileExistsError:
+                    self.logger.info("Diretório de imagens já existe")
+                self.start_save_profile_images()
 
-            for gender_capture in self.start_genders_capture():
-                yield gender_capture
-            for status_capture in self.start_statuses_capture():
-                yield status_capture
-            for links_capture in self.get_links():
-                yield links_capture
+                for gender_capture in self.start_genders_capture():
+                    yield gender_capture
+                for status_capture in self.start_statuses_capture():
+                    yield status_capture
+                for links_capture in self.get_links():
+                    yield links_capture
 
 
     def get_friends(self, friends_node_page):
@@ -229,11 +245,11 @@ class FacebookSpyder(scrapy.Spider):
         for div_friends in friends_node_page.xpath(".//div[@data-testid='friend_list_item']"):
 
             # Pegando id do profile do amigo
-            profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid')[0]
+            profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid').extract_first()
 
             # Pegando o profile do amigo
-            profile = div_friends.xpath('.//div[@class="uiProfileBlockContent"]//a')[0]
-            profile = profile.attrib["href"]
+            profile = div_friends.xpath('.//div[@class="uiProfileBlockContent"]//a[1]/@href').extract_first()
+            #profile = profile.attrib["href"]
             try:
                 profile = profile[profile.index('.com/')+5:len(profile)]
             except ValueError:
@@ -248,7 +264,7 @@ class FacebookSpyder(scrapy.Spider):
                     profile = profile[0:profile.index("&")]
 
             # Pegando o link para a imagem do amigo
-            img = div_friends.xpath('.//img/@src')[0]
+            img = div_friends.xpath('.//img/@src').extract_first()
 
             # Pegando todos os links dentro dessa div
             links = div_friends.xpath('.//a')
@@ -256,9 +272,9 @@ class FacebookSpyder(scrapy.Spider):
             # Pegando o nome
             try:
                 if n_links == 4:
-                    nome = str(links[2].xpath('text()')[0])
+                    nome = str(links[2].xpath('text()').extract_first())
                 else:
-                    nome = str(links[1].xpath('text()')[0])
+                    nome = str(links[1].xpath('text()').extract_first())
             except IndexError:
                 continue
 
@@ -294,11 +310,11 @@ class FacebookSpyder(scrapy.Spider):
         for div_friends in friends_node_page.xpath(".//div[@data-testid='friend_list_item']"):
 
             # Pegando id do perfil do amigo mútuo
-            profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid')[0]
+            profile_id = div_friends.xpath('.//button[contains(@data-flloc, "profile_browser")]/@data-profileid').extract_first()
 
             try:
                 if self.friends[profile_id]:
-                    self.logger.info("#Mutual: {} eh amig@ de {}".format(self.friends[friend_profile_id]["name"], self.friends[profile_id]["name"]))
+                    self.logger.info("#Mutual: {} é amig@ de {}".format(self.friends[friend_profile_id]["name"], self.friends[profile_id]["name"]))
                     self.user_collection.find_one_and_update({"_id": profile_id}, {'$push': {'links': friend_profile_id}}, return_document=ReturnDocument.AFTER)
             except:
                 pass
@@ -333,9 +349,10 @@ class FacebookSpyder(scrapy.Spider):
         if len(gender_div) == 0:
             gender_div = tree.xpath('//span[text()="Gênero"]/../../div')
         if (len(gender_div) != 0):
-            gender = str(etree.tostring(gender_div[1], method="text", encoding='UTF-8'), 'utf-8')
-            self.logger.info("#Genero: {} eh do sexo {}".format(friend["name"], gender))
-            self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
+            #gender = str(etree.tostring(gender_div[1], method="text", encoding='UTF-8'), 'utf-8')
+            gender = gender_div[1].xpath('.//text()').extract_first().lower()
+            self.logger.info("#Genero: {} é do sexo {}".format(friend["name"], gender))
+            #self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
 
     def start_statuses_capture(self):
         for profile_id, friend in self.friends.items():
@@ -350,14 +367,24 @@ class FacebookSpyder(scrapy.Spider):
 
     def set_status(self, response):
         tree = self.handle_page(response)
+        #open_in_browser(tree)
         profile_id = response.meta['profile_id']
         status_ul = tree.xpath(".//ul[contains(@class,'fbProfileEditExperiences')]")[0]
-        status = str(etree.tostring(status_ul, method="text", encoding='UTF-8'), 'utf-8')
-        if status == 'Nenhuma informação de relacionamento a ser exibida' or status == "No relationship info to show":
-            status = "-"
+        #status = str(etree.tostring(status_ul, method="text", encoding='UTF-8'), 'utf-8')
+        status = status_ul.xpath('.//text()').extract()
         friend = self.friends[profile_id]
-        #friend["status"] = status
-        self.logger.info("#Status: {} está {}".format(friend["name"],status))
+        if len(status) == 1:
+            status = status[0]
+            if status == 'Nenhuma informação de relacionamento a ser exibida' or status == "No relationship info to show":
+                status = "-"
+                self.logger.info("#Status: {} está sem status de relacionamento".format(friend["name"]))
+            else:
+                status = status.split()[0].lower()
+                self.logger.info("#Status: {} está {}".format(friend["name"],status))
+        else:
+            parceiro = status[0]
+            status = status[1].split()[0].lower()
+            self.logger.info("#Status: {} está {} com {}".format(friend["name"],status, parceiro))
         #self.user_collection.replace_one({"id": profile_id}, friend, True)
         self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'status': status}}, return_document=ReturnDocument.AFTER)
 

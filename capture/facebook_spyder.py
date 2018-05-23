@@ -5,6 +5,7 @@ import html as htmlentities
 import sys
 import traceback
 import scrapy
+from scrapy.utils.response import open_in_browser
 from lxml import html, etree
 from friend_pagination_request import FriendPaginationRequest
 from pymongo import MongoClient
@@ -40,6 +41,7 @@ class FacebookSpyder(scrapy.Spider):
 
     custom_settings = {
         'DOWNLOAD_DELAY': 3.5,
+        #'AUTOTHROTTLE_ENABLED': True,
         'LOG_LEVEL': 'INFO'
     }
 
@@ -106,6 +108,7 @@ class FacebookSpyder(scrapy.Spider):
     def find_something(self, start, end, lenght, string, include_start=False):
         comeco = string.index(start)
         saida = string[comeco:comeco+lenght]
+        print("Saída: "+ saida)
         if include_start:
             comeco = 0
         else:
@@ -156,34 +159,34 @@ class FacebookSpyder(scrapy.Spider):
         return friends_pagination_request
 
     def handle_friends_pagination(self, response):
+        #open_in_browser(response)
         friends_page = response.text
         request = response.meta['request']
 
+        # Buscando a chave para a próxima paginação de amigos
+        cursor = self.find_something('MDpub3Rfc3R', '"', 150, friends_page, True)
+        self.logger.debug("Encontrou o cursor")
+
+        # Apagando o 'for (;;);' do começo da página
+        # Decodificando entidades HTML ex.: &quot; &amp;
+        # Fazendo o parsing do JSON
+        json_data = json.loads(friends_page[len('for (;;);'):len(friends_page)])
+        
+        # Pegando o elemento dentro do JSON que contém a página
+        is_continue = CONTINUE_FRIENDS_CAPTURE
         try:
-            # Buscando a chave para a próxima paginação de amigos
-            cursor = self.find_something('MDpub3Rfc3R', '"', 100, friends_page, True)
-
-            # Apagando o 'for (;;);' do começo da página
-            # Decodificando entidades HTML ex.: &quot; &amp;
-            # Fazendo o parsing do JSON
-            json_data = json.loads(friends_page[len('for (;;);'):len(friends_page)])
-            #self.logger.info(json_data["payload"])
-            
-            # Pegando o elemento dentro do JSON que contém a página
-            is_continue = CONTINUE_FRIENDS_CAPTURE
-            try:
-                if json_data["payload"] != "":
-                    friends_page_tree = html.fromstring(htmlentities.unescape(json_data["payload"]))
-                else:
-                    is_continue = END_FRIENDS_CAPTURE    
-            except etree.XMLSyntaxError:
-                self.logger.info("Captura de amigos finalizada")
-                is_continue = END_FRIENDS_CAPTURE
-
-            #"".decode('unicode_escape')
-            #"".encode('utf-8'))
-        except ValueError:
+            if "payload" in json_data and json_data["payload"] != "":
+                self.logger.debug("Tem payload")
+                friends_page_tree = html.fromstring(htmlentities.unescape(json_data["payload"]))
+            else:
+                self.logger.debug("Não tem payload")
+                is_continue = END_FRIENDS_CAPTURE    
+        except etree.XMLSyntaxError:
+            self.logger.info("Captura de amigos finalizada")
             is_continue = END_FRIENDS_CAPTURE
+
+        #"".decode('unicode_escape')
+        #"".encode('utf-8'))
 
         # Analisando a próxima página
         if is_continue != END_FRIENDS_CAPTURE:
@@ -205,13 +208,12 @@ class FacebookSpyder(scrapy.Spider):
         else:
             self.controle['colecao'] = MUTUAL
 
-            self.path_root = "../visualization/fotos/"+self.username+"/"
-            try:
-                os.mkdir(self.path_root)
-            except FileExistsError:
-                self.logger.info("Diretório de imagens de perfis de {} já existe".format(self.username))
-            self.start_save_profile_images()
-
+            # self.path_root = "../visualization/fotos/"+self.username+"/"
+            # try:
+            #     os.mkdir(self.path_root)
+            # except FileExistsError:
+            #     self.logger.info("Diretório de imagens de perfis de {} já existe".format(self.username))
+            # self.start_save_profile_images()
 
             for gender_capture in self.start_genders_capture():
                 yield gender_capture
@@ -219,6 +221,7 @@ class FacebookSpyder(scrapy.Spider):
                 yield status_capture
             for links_capture in self.get_links():
                 yield links_capture
+
 
     def get_friends(self, friends_node_page):
 

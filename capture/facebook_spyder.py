@@ -352,7 +352,7 @@ class FacebookSpyder(scrapy.Spider):
             #gender = str(etree.tostring(gender_div[1], method="text", encoding='UTF-8'), 'utf-8')
             gender = gender_div[1].xpath('.//text()').extract_first().lower()
             self.logger.info("#Genero: {} é do sexo {}".format(friend["name"], gender))
-            #self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
+            self.user_collection.find_one_and_update({"_id": profile_id}, {'$set': {'genero': gender}}, return_document=ReturnDocument.AFTER)
 
     def start_statuses_capture(self):
         for profile_id, friend in self.friends.items():
